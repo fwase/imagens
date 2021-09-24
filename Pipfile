@@ -9,6 +9,11 @@ opencv-python = "==4.5.3.56"
 numpy = "==1.21.2"
 jupyter = "==1.0.0"
 matplotlib = "==3.4.3"
+black = "==21.9b0"
+isort = "==5.9.3"
+autoflake = "==1.4"
+mypy = "==0.910"
+flake8 = "==3.9.2"
 
 [dev-packages]
 
