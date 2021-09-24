@@ -77,4 +77,52 @@ def global_histogram(img, generate_array=True):
 
     plt.show()
 
+def compression_and_expansion(img):
+    def map_pixel(pixel):
+        if pixel <= 85:
+            return pixel // 2
+        
+        if 85 < pixel < 170:
+            return int(2 * pixel - 127)
+        
+        return int(pixel / 2 + 128)
+
+
+    channels = cv2.split(img)
+
+    for i in range(len(channels)):
+        height, width = channels[i].shape
+
+        for j in range(height):
+            for k in range(width):
+                channels[i][j][k] = map_pixel(channels[i][j][k])
+
+    final_img = cv2.merge(channels)
+
+    return final_img
+
+
+def linear_contrast_expansion(img, z_a, z_b, min_value = 0, max_value = 255):
+    def map_pixel(pixel, z_a, z_b, min_value, max_value):
+        if pixel <= z_a:
+            return min_value
+
+        if z_a < pixel < z_b:
+            return int(
+                ((max_value - min_value) / (z_b - z_a)) * (pixel - z_a) + min_value
+            )
+
+        return max_value
+
+    channels = cv2.split(img)
+
+    for i in range(len(channels)):
+        height, width = channels[i].shape
+
+        for j in range(height):
+            for k in range(width):
+                channels[i][j][k] = map_pixel(channels[i][j][k], z_a, z_b, min_value, max_value)
+
+    final_img = cv2.merge(channels)
     
+    return final_img    
