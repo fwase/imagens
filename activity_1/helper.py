@@ -56,10 +56,10 @@ def negative(img):
     return final_img
 
 
-def counter(array):
+def counter(array, limit):
     frequency = {}
 
-    for i in range(256):
+    for i in range(limit):
         frequency[i] = 0
 
     for value in array:
@@ -74,7 +74,7 @@ def count_pixels_frequency(img):
     pixel_freq = defaultdict(list)
 
     for channel_pixel_value in channels_pixel_values:
-        pixel_frequency = counter(channel_pixel_value)
+        pixel_frequency = counter(channel_pixel_value, 256)
 
         for key, item in pixel_frequency.items():
             pixel_freq[key].append(item)
@@ -90,37 +90,6 @@ def global_histogram(img, path_file_output):
 
     print("Done!")
     print(f"Saved in {path_file_output}")
-
-
-def break_in_blocks(img, grid_order):
-    (height, width) = img.shape[:2]
-    blocks = []
-
-    for i in range(grid_order):
-        for j in range(grid_order):
-            img_grid = img[
-                i * height // grid_order : i * height // grid_order
-                + height // grid_order,
-                j * width // grid_order : j * width // grid_order + width // grid_order,
-                :,
-            ]
-            blocks.append(img_grid)
-
-    return blocks
-
-
-def local_histogram(img, grid_order, path=""):
-    blocks = break_in_blocks(img, grid_order)
-    path_file = os.path.join(path, "represent_local_histogram_of_image.json")
-    pixels_freq_block = [count_pixels_frequency(block) for block in blocks]
-
-    with open(path_file, "w") as f:
-        for pixel_freq_block in pixels_freq_block:
-            json.dump(pixel_freq_block, f)
-            f.write("\n")
-
-    print("Done!")
-    print(f"Saved in {path_file}")
 
 
 def compression_and_expansion(img):
@@ -286,3 +255,65 @@ def quantization(img, total_colors):
     image_quant = cv2.cvtColor(image_quant, cv2.COLOR_LAB2RGB)
 
     return image_quant
+
+
+def edge_detection(img, total_colors):
+    image_applied_quantization = quantization(img, total_colors)
+
+    image_blur = cv2.GaussianBlur(image_applied_quantization,(3,3), sigmaX=0, sigmaY=0)
+    sobel = cv2.Sobel(src=image_blur, ddepth=cv2.CV_64F, dx=1, dy=1, ksize=7)
+
+    return sobel
+
+
+def histograms_bic(img, path_file_output):
+    total_colors = 256
+    image_quant = quantization(img, total_colors=256)
+    image_quant = image_quant[:,:,0]
+
+    internals = []
+    edges = []
+
+    for i in range(len(image_quant)):
+        for j in range(len(image_quant[i])):
+            if i == 0 or i == len(image_quant) - 1 or j == 0 or j == len(image_quant[i]) - 1:
+                if i != 0:
+                    if image_quant[i][j] == image_quant[i - 1][j]:
+                        edges.append(image_quant[i][j])
+                    else:
+                        internals.append(image_quant[i][j])
+                    
+                if j != len(image_quant[i]) - 1:
+                    if image_quant[i][j] == image_quant[i][j + 1]:
+                        edges.append(image_quant[i][j])
+                    else:
+                        internals.append(image_quant[i][j])
+                        
+                if i != len(image_quant) - 1:
+                    if image_quant[i][j] == image_quant[i + 1][j]:
+                        edges.append(image_quant[i][j])
+                    else:
+                        internals.append(image_quant[i][j])
+                        
+                if j != 0:
+                    if image_quant[i][j] == image_quant[i][j - 1]:
+                        edges.append(image_quant[i][j])
+                    else:
+                        internals.append(image_quant[i][j])
+
+            else:
+                if image_quant[i][j] in {image_quant[i - 1][j], image_quant[i][j + 1], image_quant[i + 1][j], image_quant[i][j - 1]}:
+                    edges.append(image_quant[i][j])
+                else:
+                    internals.append(image_quant[i][j])
+    
+    histogram_internals_data = counter(internals, total_colors)
+    histogram_edges_data = counter(edges, total_colors)
+
+    with open(path_file_output, "w") as f:
+        for hist in [histogram_internals_data, histogram_edges_data]:
+            json.dump(hist, f)
+            f.write("\n")
+
+        print("Done!")
+        print(f"Saved in {path_file_output}")
