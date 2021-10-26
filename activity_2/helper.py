@@ -56,13 +56,76 @@ def get_fps(video):
     return video.get(cv2.CAP_PROP_FPS)
 
 
-def get_frames_from_video(video):
+def get_seconds_from_frame_number(frame_number, fps):
+    return int(frame_number / fps)
+
+
+def get_frames_from_video(video, window):
     total_frames = get_total_frames(video)
     frames = []
 
-    for _ in range(total_frames):
+    for index_frame in range(total_frames):
         _, frame = video.read()
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frames.append(frame_rgb)
+        if index_frame % window == 0:
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame_rgb)
 
     return frames
+
+
+def change_scene(frame_1, frame_2, threshold):
+    distance = distance_two_frames(frame_1, frame_2)
+    min_distance = min(distance.values())
+
+    return True if min_distance < threshold else False
+
+
+def accuracy(change_scenes_true, change_scenes_predict):
+    total = len(change_scenes_true)
+    correct = 0
+
+    for second in change_scenes_true:
+        if second in change_scenes_predict:
+            correct += 1
+
+    return correct / total
+
+
+def generate_index_frames_to_compare(video, window):
+    total_frames = get_total_frames(video)
+    frames_to_compare = []
+
+    for index_frame in range(0, total_frames - window, window):
+        frames_to_compare.append((index_frame, index_frame + window))
+
+    return frames_to_compare
+
+
+def divide_3_partitions(image):
+    height, width, _ = image.shape
+
+    part_1 = image[0 : int(height / 2), 0 : int(width / 2)]
+    part_2 = image[0 : int(height / 2), int(width / 2) : width]
+    part_3 = image[int(height / 2) : height, 0:width]
+
+    return [part_1, part_2, part_3]
+
+
+def divide_5_by_5(image):
+    partitions = []
+    height, width, _ = image.shape
+    height = int(height / 5)
+    width = int(width / 5)
+
+    for i in range(5):
+        for j in range(5):
+            partitions.append(
+                image[i * height : (i + 1) * height, j * width : (j + 1) * width]
+            )
+
+    return partitions
+
+
+def save_image(image, path_file):
+    image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(path_file, image_bgr)
